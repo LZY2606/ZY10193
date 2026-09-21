@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>碳纪枝径</title>
+<style>
+:root{--bg:#f5f7f5;--ink:#1d2a24;--muted:#5c6b63;--line:#cfd9d2;--green:#2f7d4f;--green2:#8ac49a;--amber:#c8842c;--red:#b1463a;--card:#fff}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(120deg,#1f4d35,#2f7d4f);color:#fff;padding:18px 28px}header h1{margin:0;font-size:24px;letter-spacing:4px}header p{margin:6px 0 0;opacity:.88;font-size:13px}
+main{max-width:1280px;margin:20px auto;padding:0 18px;display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}h2{font-size:15px;margin:0 0 12px;border-left:4px solid var(--green);padding-left:8px}
+label{display:block;font-size:12px;color:var(--muted);margin:9px 0 4px}select,input[type=file]{width:100%;padding:7px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13px}
+button{border:0;border-radius:6px;padding:8px 12px;background:var(--green);color:#fff;cursor:pointer;font-size:13px;margin:6px 6px 0 0}button.secondary{background:#e7efe9;color:var(--ink);border:1px solid var(--line)}button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px}.row>*{flex:1}.hint{font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px}.msg{font-size:12px;margin-top:8px;min-height:16px}.ok{color:var(--green)}.err{color:var(--red)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{border:1px solid var(--line);border-radius:20px;padding:4px 9px;font-size:11px;background:#f3f8f4;cursor:pointer}.chip.active{background:var(--green);color:#fff;border-color:var(--green)}
+#branchList{max-height:260px;overflow:auto}.branch{border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:7px;font-size:12px;cursor:pointer}.branch.active{border-color:var(--green);box-shadow:0 0 0 2px rgba(47,125,79,.18)}.branch .meta{color:var(--muted);margin-top:3px}.tag{display:inline-block;border-radius:4px;padding:1px 5px;font-size:10px;margin-right:4px}.tag.v{background:#e2efe6;color:#22603a}.tag.s{background:#fcebd8;color:#8a4d10}.tag.d{background:#e6ecf4;color:#2b4b78}
+.big{display:grid;grid-template-columns:1fr 1fr;gap:14px}.kv{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #e2e8e3}.kv b{font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:6px 8px;border-bottom:1px solid #e7ede8;text-align:right}th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:600;background:#f7faf8}
+svg{width:100%;display:block}.axis{font-size:10px;fill:#5c6b63}.axis-line{stroke:#9aa8a0;stroke-width:1}.density{fill:#3f9163;opacity:.78}.cum{fill:none;stroke:#2b5d88;stroke-width:2}.hdr68{fill:rgba(200,132,44,.26)}.hdr95{fill:rgba(43,93,136,.12)}.zeroline{stroke:#b8c4bd;stroke-dasharray:3 3}
+.pill{font-size:11px;border-radius:12px;padding:2px 8px;background:#eef4f0}.warn{color:#8a4d10}.direction-banner{display:flex;justify-content:space-between;align-items:center;background:#eef6f0;border:1px solid #bcd9c6;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px}
+@media(max-width:980px){main{grid-template-columns:1fr}.big{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><h1>碳纪枝径</h1><p>本地版本化校准曲线 · 固定网格密度重建 · 多分支保留完整分布而非加权平均年代</p></header>
+<main>
+<section>
+  <div class="card">
+    <h2>1 · 导入测年</h2>
+    <input type="file" id="importFile" accept=".csv,.json">
+    <div class="hint">列：code, age, sd, material, reservoir(可选), layer(可选)。reservoir 按 age − reservoir 修正。</div>
+    <button id="importBtn">导入/更新样本</button>
+    <div id="importMsg" class="msg"></div>
+  </div>
+  <div class="card">
+    <h2>2 · 选择参数</h2>
+    <label>测年样本</label><select id="sampleSelect"></select>
+    <label>校准曲线版本（不同版本结果永不合并）</label><select id="curveSelect"></select>
+    <label>日历年显示方向（内部 cal BP 网格不反转）</label>
+    <select id="directionSelect">
+      <option value="oldward_positive">纪年正方向朝古老 →（cal BP 向右增大）</option>
+      <option value="youngward_positive">纪年正方向朝年轻 →（cal BP 向右减小）</option>
+    </select>
+    <label>先验</label>
+    <select id="priorSelect"><option value="uniform">均匀日历先验（单测年）</option><option value="stratified">分层硬顺序先验（按 layer）</option></select>
+    <div id="layerChips" class="chips" style="margin-top:8px"></div>
+    <button id="runBtn">生成参数分支</button>
+    <div id="runMsg" class="msg"></div>
+  </div>
+  <div class="card">
+    <h2>3 · 分支与运行记录</h2>
+    <div id="branchList" class="hint">尚无分支。</div>
+    <div class="row" style="margin-top:10px">
+      <button class="secondary" id="replayBtn">重放当前分支</button>
+      <button class="secondary" id="exportBtn">导出运行记录</button>
+    </div>
+    <div class="row">
+      <input type="file" id="bundleFile" accept=".json">
+      <button class="secondary" id="bundleImportBtn">导入记录</button>
+    </div>
+    <button class="secondary" id="resetBtn" style="color:#8a3a30">清空数据库（保留曲线）</button>
+    <div id="opMsg" class="msg"></div>
+  </div>
+</section>
+<section>
+  <div id="empty" class="card hint">选择样本、曲线版本与先验后点击「生成参数分支」。同一测年切换曲线版本会得到独立分支，可并排重放。</div>
+  <div id="detail" style="display:none">
+    <div class="direction-banner"><span id="dirText"></span><span id="versionText" class="pill"></span></div>
+    <div class="card">
+      <h2>校准密度与累积概率</h2>
+      <svg id="chart" viewBox="0 0 860 300" role="img" aria-label="校准密度与累积概率"></svg>
+      <div class="hint">橙色带为 68% 最高密度范围，蓝色带为 95%；固定 10 年格不被切开。归一化在后端完整 120 格上完成，与前端显示缩放无关。</div>
+    </div>
+    <div class="big">
+      <div class="card">
+        <h2>概率质量与口径</h2>
+        <div id="kvBox"></div>
+      </div>
+      <div class="card">
+        <h2>先验来源</h2>
+        <div id="priorBox" class="hint"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>不连续区间（实际离散质量）</h2>
+      <div id="intervalTables"></div>
+    </div>
+  </div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let state={samples:[],curves:[],branches:[],current:null,selectedCodes:new Set()};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function api(url,opts){const r=await fetch(url,opts);if(!r.ok){let d='';try{d=(await r.json()).detail}catch{}throw new Error(d||r.status)}return r.json();}
+async function refresh(){
+  const [samples,curves,branches]=await Promise.all([api('/api/samples'),api('/api/curves'),api('/api/branches')]);
+  state.samples=samples;state.curves=curves;state.branches=branches;
+  renderSelectors();renderBranches();
+  if(state.current){const still=branches.find(b=>b.id===state.current.id);if(!still)showEmpty();else await selectBranch(state.current.id,true);}
+  else if(branches.length){await selectBranch(branches[branches.length-1].id);}
+}
+function renderSelectors(){
+  const prev=$('sampleSelect').value;
+  $('sampleSelect').innerHTML=samples2(state.samples);
+  if([...$('sampleSelect').options].some(o=>o.value===prev))$('sampleSelect').value=prev;
+  $('curveSelect').innerHTML=state.curves.map(c=>`<option value="${esc(c.version)}">${esc(c.name)}（${esc(c.version)}）</option>`).join('');
+  const chips=state.samples.filter(s=>s.layer!==null).map(s=>{
+    const on=state.selectedCodes.has(s.code)?'active':'';
+    return `<span class="chip ${on}" data-code="${esc(s.code)}">L${s.layer} ${esc(s.code)}</span>`;
+  }).join('');
+  $('layerChips').innerHTML=chips||'<span class="hint">导入带 layer 的样本以启用分层先验</span>';
+  document.querySelectorAll('#layerChips .chip').forEach(el=>el.onclick=()=>{
+    const c=el.dataset.code;state.selectedCodes.has(c)?state.selectedCodes.delete(c):state.selectedCodes.add(c);renderSelectors();
+  });
+  $('priorSelect').onchange=()=>{$('layerChips').style.display=$('priorSelect').value==='stratified'?'flex':'none';};
+  $('layerChips').style.display=$('priorSelect').value==='stratified'?'flex':'none';
+}
+function samples2(xs){return xs.map(s=>`<option value="${esc(s.code)}">${esc(s.code)} · ${esc(s.material)} · ${s.age}±${s.sd}${s.reservoir?` · R${s.reservoir}`:''}${s.layer!==null?` · L${s.layer}`:''}</option>`).join('');}
+function renderBranches(){
+  if(!state.branches.length){$('branchList').innerHTML='<span class="hint">尚无分支。</span>';return;}
+  $('branchList').innerHTML=state.branches.map(b=>{
+    const active=state.current&&state.current.id===b.id?'active':'';
+    return `<div class="branch ${active}" data-id="${b.id}">#${b.id} ${esc(b.sample_code)}
+      <div class="meta"><span class="tag v">${esc(b.curve_version)}</span><span class="tag d">${b.direction==='oldward_positive'?'古老为正':'年轻为正'}</span><span class="tag s">${b.prior_kind==='uniform'?'均匀':'分层'}</span><br>${esc(b.created_at)} · ${b.result_hash.slice(0,10)}</div></div>`;
+  }).join('');
+  document.querySelectorAll('#branchList .branch').forEach(el=>el.onclick=()=>selectBranch(+el.dataset.id));
+}
+function showEmpty(){$('empty').style.display='block';$('detail').style.display='none';state.current=null;renderBranches();}
+async function selectBranch(id,keep){
+  const detail=await api('/api/branches/'+id);state.current=detail;
+  $('empty').style.display='none';$('detail').style.display='block';
+  renderBranches();draw(detail.result);
+}
+function pct(x){return (x*100).toFixed(2)+'%';}
+function draw(r){
+  const oldPositive=r.direction.code==='oldward_positive';
+  $('dirText').textContent='纪年方向：'+r.direction.label+'（内部坐标仍为 cal BP，方向仅改变显示）';
+  $('versionText').textContent=r.curve.name+' · '+r.curve.version+' · '+r.curve.knot_hash.slice(0,12);
+  const W=860,H=300,L=46,R=18,T=16,B=42,iw=W-L-R,ih=H-T-B,n=r.density.length;
+  const dmax=Math.max(...r.density),cmax=1;
+  const yd=v=>T+ih-(v/dmax)*(ih-30), yc=v=>T+ih-(v/cmax)*(ih-30);
+  const bpAt=px=>{const t=(px-L)/iw;return oldPositive?r.grid.min_bp+t*(r.grid.max_bp-r.grid.min_bp):r.grid.max_bp-t*(r.grid.max_bp-r.grid.min_bp);};
+  const sx=bp=>L+(oldPositive?(bp-r.grid.min_bp)/(r.grid.max_bp-r.grid.min_bp):(r.grid.max_bp-bp)/(r.grid.max_bp-r.grid.min_bp))*iw;
+  const sxCell=idx=>sx(r.density_centers_bp[idx]);
+  const bands=r.hdr.slice().sort((a,b)=>b.target_probability-a.target_probability).map(h=>{
+    const cls=h.target_probability>=.9?'hdr95':'hdr68';
+    return h.intervals.map(iv=>{const x0=sx(iv.end_bp),x1=sx(iv.start_bp);return `<rect class="${cls}" x="${Math.min(x0,x1)}" y="${T}" width="${Math.abs(x1-x0)}" height="${ih}"/>`;}).join('');
+  }).join('');
+  const bars=r.density.map((v,i)=>{const w=iw/n;const xp=sxCell(i)-w/2;return `<rect class="density" x="${xp.toFixed(2)}" y="${yd(v).toFixed(2)}" width="${(w-.4).toFixed(2)}" height="${(T+ih-yd(v)).toFixed(2)}"/>`;}).join('');
+  const cumPts=r.cdf.map((v,i)=>{const bp=r.cdf_edges_bp[i];return sx(bp).toFixed(1)+','+yc(v).toFixed(1);}).join(' ');
+  const ticks=[0,200,400,600,800,1000,1200];
+  const axis=ticks.map(bp=>`<g><line class="axis-line" x1="${sx(bp)}" y1="${T+ih}" x2="${sx(bp)}" y2="${T+ih+5}"/><text class="axis" x="${sx(bp)}" y="${T+ih+18}" text-anchor="middle">${bp}</text></g>`).join('');
+  const arrow=`<text class="axis" x="${L+iw}" y="${H-8}" text-anchor="end">${oldPositive?'越右越古老 cal BP →':'越右越年轻 ← cal BP（向右减小）'}</text>
+  <text class="axis" x="${L}" y="${T-4}">密度（柱，左轴）</text><text class="axis" x="${L+iw}" y="${T-4}" text-anchor="end">累积概率（线，右轴）</text>`;
+  $('chart').innerHTML=`<line class="zeroline" x1="${L}" y1="${T+ih}" x2="${L+iw}" y2="${T+ih}"/>${bands}${bars}<polyline class="cum" points="${cumPts}"/>${axis}${arrow}`;
+  drawInfo(r);
+}
+function drawInfo(r){
+  const s=r.sample;
+  const kv=[
+    ['分支样本',`${s.code}（${esc(s.material)}）`],
+    ['实验年龄',`${s.age} ± ${s.sd} ¹⁴C BP`],
+    ['库效应校正',`reservoir ${s.reservoir} → 有效目标 ${r.effective_target} ± ${r.effective_sigma}`],
+    ['固定网格',`${r.grid.min_bp}–${r.grid.max_bp} cal BP，步长 ${r.grid.step}，共 ${r.grid.cell_count} 格`],
+    ['截断诊断',`曲线端点外高斯尾部 ${pct(r.truncation_mass)}（不参与归一化）`],
+    ['网格内未归一质量',r.unnormalized_grid_mass.toExponential(3)],
+    ['密度归一化质量',pct(r.density.reduce((a,b)=>a+b,0))],
+    ['结果哈希',r.curve.knot_hash?('curve '+r.curve.knot_hash.slice(0,12)):''],
+  ];
+  $('kvBox').innerHTML=kv.filter(k=>k[1]!==''&&k[1]!=null).map(k=>`<div class="kv"><span>${k[0]}</span><b>${k[1]}</b></div>`).join('');
+  const p=r.prior;
+  const order=(p.ordered_samples||[]).map(o=>typeof o==='string'?o:`L${o.layer}:${o.code}`).join(' → ');
+  $('priorBox').innerHTML=`<div class="kv"><span>先验类型</span><b>${p.kind==='uniform'?'均匀日历先验':'分层硬顺序先验'}</b></div>
+    <div class="kv"><span>说明</span><b style="text-align:right;max-width:60%">${esc(p.label)}</b></div>
+    <div class="kv"><span>顺序来源</span><b>${esc(order)}</b></div>
+    <div class="hint" style="margin-top:8px">先验作用于固定日历格；分层组联合推断后只保留各样本的完整边缘分布，不以加权平均年代替代。</div>`;
+  $('intervalTables').innerHTML=r.hdr.map(h=>{
+    const rows=h.intervals.map((iv,j)=>`<tr><td>区间 ${j+1}</td><td>${iv.start_bp}–${iv.end_bp}</td><td>${iv.cell_count}</td><td>${pct(iv.mass)}</td></tr>`).join('');
+    const shortfall=(h.actual_mass-h.target_probability);
+    return `<div style="margin-bottom:14px"><div style="font-size:13px;margin:6px 0">目标 ${pct(h.target_probability)} · 离散网格实际包含 <b class="${shortfall>0.005?'warn':'ok'}">${pct(h.actual_mass)}</b>（跨过目标后不再切分最后一格，溢出 ${pct(Math.max(0,shortfall))}） · ${h.intervals.length} 个不相连区间</div>
+    <table><thead><tr><th>分量</th><th>cal BP</th><th>格数</th><th>该分量质量</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }).join('');
+}
+async function runBranch(){
+  const body={code:$('sampleSelect').value,curve_version:$('curveSelect').value,direction:$('directionSelect').value};
+  try{
+    let id;
+    if($('priorSelect').value==='uniform'){
+      const out=await api('/api/branches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});id=out.branch_id;
+    }else{
+      const codes=[...state.selectedCodes];
+      if(codes.length<2)throw new Error('分层先验请在标签中至少选择两个带 layer 的样本');
+      const out=await api('/api/branches/stratified',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({codes,curve_version:body.curve_version,direction:body.direction})});
+      id=out.branches[0].branch_id;
+    }
+    $('runMsg').className='msg ok';$('runMsg').textContent='已生成分支 #'+id;
+    await refresh();await selectBranch(id);
+  }catch(e){$('runMsg').className='msg err';$('runMsg').textContent=e.message;}
+}
+function setMsg(el,cls,text){el.className='msg '+cls;el.textContent=text;}
+$('importBtn').onclick=async()=>{
+  const f=$('importFile').files[0];if(!f)return setMsg($('importMsg'),'err','请选择 CSV 或 JSON 文件');
+  const fd=new FormData();fd.append('file',f);
+  try{const r=await api('/api/import',{method:'POST',body:fd});setMsg($('importMsg'),'ok',`导入 ${r.imported} 条，更新 ${r.updated} 条`);await refresh();}
+  catch(e){setMsg($('importMsg'),'err',e.message);}
+};
+$('runBtn').onclick=runBranch;
+$('replayBtn').onclick=async()=>{
+  if(!state.current)return setMsg($('opMsg'),'err','请先选择一个分支');
+  try{
+    const r=await api('/api/branches/'+state.current.id+'/replay',{method:'POST'});
+    setMsg($('opMsg'),r.match?'ok':'err',r.match?`重放一致：${r.replayed_hash.slice(0,16)}`:'重放结果与存储哈希不一致！');
+    if(r.match){state.current.result=r.result;draw(r.result);}
+  }catch(e){setMsg($('opMsg'),'err',e.message);}
+};
+$('exportBtn').onclick=()=>{window.location.href='/api/export';};
+$('bundleImportBtn').onclick=async()=>{
+  const f=$('bundleFile').files[0];if(!f)return setMsg($('opMsg'),'err','请先选择导出的 JSON 运行记录');
+  const fd=new FormData();fd.append('file',f);
+  try{const r=await api('/api/import-runs',{method:'POST',body:fd});setMsg($('opMsg'),'ok','已恢复运行记录：'+JSON.stringify(r.imported));await refresh();}
+  catch(e){setMsg($('opMsg'),'err',e.message);}
+};
+$('resetBtn').onclick=async()=>{
+  if(!confirm('确定清空样本、分支、结果与运行记录？版本化曲线会保留。'))return;
+  await api('/api/reset',{method:'POST'});state.selectedCodes.clear();showEmpty();
+  setMsg($('opMsg'),'ok','数据库已清空，可重新导入固定夹具复核。');await refresh();
+};
+refresh().catch(e=>setMsg($('opMsg'),'err',e.message));
+</script>
+</body>
+</html>

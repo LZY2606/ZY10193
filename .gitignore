@@ -34,3 +34,9 @@ coverage/
 .vite/
 .turbo/
 *.tsbuildinfo
+
+# --- 本项目运行期数据库（固定夹具可重新播种）---
+carbon_branches.db
+carbon_branches.db-journal
+tests/_test_carbon.db
+tests/_test_carbon.db-journal

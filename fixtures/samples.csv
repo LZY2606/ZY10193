@@ -1,0 +1,8 @@
+code,age,sd,material,reservoir,layer
+S-A,800,40,charcoal,0,
+S-B,805,45,wood,0,
+S-C,760,35,shell,40,
+S-D,640,50,bone,0,
+T1,800,40,charcoal,0,1
+T2,820,40,wood,0,2
+T3,760,35,shell,40,3
