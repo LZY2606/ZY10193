@@ -1,0 +1,3 @@
+code,age_bp,sigma_bp,material,reservoir_correction
+FIX-A,5000,35,charcoal,0
+FIX-B,5000,35,shell,120

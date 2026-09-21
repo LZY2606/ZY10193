@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>碳纪枝径</title>
+  <link rel="icon" href="/static/favicon.svg">
+  <style>
+    :root { color-scheme: light; --ink:#17201b; --muted:#65736b; --line:#d9e0db; --panel:#f7faf7; --accent:#166344; --accent2:#d8efe4; --warn:#9a5a00; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); background:#eef3ef; }
+    header { padding:22px 28px 14px; background:#113c2c; color:white; }
+    h1 { margin:0 0 6px; font-size:28px; letter-spacing:.08em; }
+    header p { margin:0; color:#c9e1d5; }
+    main { padding:18px 28px 36px; display:grid; gap:16px; }
+    .grid { display:grid; grid-template-columns:minmax(300px,420px) 1fr; gap:16px; align-items:start; }
+    .card { background:white; border:1px solid var(--line); border-radius:12px; padding:16px; box-shadow:0 2px 8px #17351f0d; }
+    h2 { font-size:17px; margin:0 0 12px; } h3 { font-size:14px; margin:14px 0 8px; }
+    label { display:block; font-size:12px; color:var(--muted); margin:9px 0 4px; }
+    input, select, textarea, button { width:100%; border:1px solid #bcc8c0; border-radius:8px; padding:8px 9px; font:inherit; background:white; }
+    textarea { min-height:100px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; }
+    button { cursor:pointer; background:var(--accent); color:white; border-color:var(--accent); margin-top:9px; font-weight:600; }
+    button.secondary { background:white; color:var(--accent); } button.warn { background:#8a4b09; border-color:#8a4b09; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+    .hint { font-size:12px; color:var(--muted); line-height:1.45; }
+    .pill { display:inline-block; border-radius:999px; background:var(--accent2); color:#0e4e34; padding:2px 8px; font-size:12px; margin:2px 4px 2px 0; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th,td { border-bottom:1px solid var(--line); padding:7px 6px; text-align:left; vertical-align:top; }
+    th { color:#445249; background:#f4f7f4; }
+    .scroll { max-height:330px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+    #chart { width:100%; height:330px; border:1px solid var(--line); border-radius:8px; background:#fcfefc; }
+    .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:6px; }
+    .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; }
+    #status { min-height:20px; font-size:12px; color:var(--accent); margin-top:8px; white-space:pre-wrap; }
+    .branchline { display:flex; justify-content:space-between; gap:8px; align-items:center; border-bottom:1px solid var(--line); padding:8px 0; }
+    .branchline button { width:auto; margin:0; padding:5px 9px; }
+    @media (max-width: 900px) { .grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<header><h1>碳纪枝径</h1><p>本地版本化校准曲线 · 固定网格密度 · 多参数分支不合并 · 离散区间实际质量</p></header>
+<main>
+  <section class="grid">
+    <div class="card"><h2>1. 导入测年</h2><button id="fixtureBtn">导入固定 fixture</button>
+      <h3>CSV / JSON 行</h3><textarea id="importText" placeholder="code,age_bp,sigma_bp,material,reservoir_correction&#10;S-1,5000,35,charcoal,0"></textarea><button id="importBtn">导入</button>
+      <h3>样本</h3><div class="scroll"><table><thead><tr><th>代码</th><th>年龄/误差</th><th>材料/库校正</th><th></th></tr></thead><tbody id="samples"></tbody></table></div><div id="status"></div></div>
+    <div class="card"><h2>2. 保留参数分支</h2><div class="row"><div><label>校准曲线摘要</label><select id="curve"></select></div><div><label>分层先验</label><select id="prior"></select></div></div>
+      <div class="row"><div><label>日历纪年方向（必须显示正方向）</label><select id="direction"><option value="BP_OLDER_POSITIVE">cal BP：向过去/更老为正</option><option value="FORWARD_YOUNGER_POSITIVE">公元纪年：向年轻为正</option></select></div><div><label>覆盖概率（1-2 个）</label><input id="coverages" value="0.683,0.954"></div></div>
+      <div id="curveSummary" class="hint"></div><button id="branchBtn">为选中样本计算/重放分支</button><h3>该样本旧分支</h3><div id="branches" class="hint">导入样本后显示。</div></div>
+  </section>
+  <section class="card"><h2>3. 密度、累积概率与区间</h2><div><strong id="branchTitle">尚未选择分支</strong> <span id="branchMeta"></span></div>
+    <svg id="chart" viewBox="0 0 1000 330" role="img" aria-label="后验密度和累积概率"></svg>
+    <div class="legend"><span><i class="dot" style="background:#111"></i>后验密度</span><span><i class="dot" style="background:#1769aa"></i>先验密度</span><span><i class="dot" style="background:#2b8a3e"></i>CDF</span><span><i class="dot" style="background:#f4a261"></i>HPD</span></div>
+    <h3>不连续区间（按当前纪年方向）</h3><div class="scroll"><table><thead><tr><th>覆盖概率</th><th>区间起点</th><th>终点</th><th>区间质量</th><th>峰中心 BP</th><th>格数</th><th>触边</th></tr></thead><tbody id="regions"></tbody></table></div>
+    <h3>归一化与截断误差</h3><div id="diagnostics" class="hint"></div><h3>先验来源</h3><div id="priorSources"></div></section>
+  <section class="grid"><div class="card"><h2>运行记录</h2><div class="row"><button class="secondary" id="refreshRuns">刷新</button><button class="secondary" id="exportRuns">导出 JSON</button></div><div class="scroll" style="margin-top:10px"><table><thead><tr><th>#</th><th>动作</th><th>状态</th><th>时间</th></tr></thead><tbody id="runs"></tbody></table></div></div>
+  <div class="card"><h2>版本隔离与复核</h2><p class="hint">不同曲线版本的分支只并列展示；后验来自完整分布，不用加权平均年代替代。清空数据库只删除业务数据，并重新播种固定本地曲线。</p><button class="warn" id="clearBtn">清空数据库并重新播种曲线</button></div></section>
+</main><script src="/static/app.js"></script></body></html>
